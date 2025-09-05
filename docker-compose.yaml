@@ -1,12 +1,9 @@
 services:
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
-      - ./backend/services/docker/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    command: redis-server /usr/local/etc/redis/redis.conf --save 60 1 --loglevel warning
+    command: redis-server --save 60 1 --loglevel warning
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -16,20 +13,34 @@ services:
   backend:
     image: ghcr.io/suna-ai/suna-backend:latest
     platform: linux/amd64
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend/.env:/app/.env
-    env_file:
-      - ./backend/.env
     environment:
+      - ENV_MODE=${ENV_MODE:-production}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
       - REDIS_SSL=False
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - DAYTONA_API_KEY=${DAYTONA_API_KEY}
+      - DAYTONA_SERVER_URL=${DAYTONA_SERVER_URL:-https://app.daytona.io/api}
+      - DAYTONA_TARGET=${DAYTONA_TARGET:-us}
+      - RAPID_API_KEY=${RAPID_API_KEY}
+      - MCP_CREDENTIAL_ENCRYPTION_KEY=${MCP_CREDENTIAL_ENCRYPTION_KEY}
+      - WEBHOOK_BASE_URL=https://suna.martin-linde.com
+      - TRIGGER_WEBHOOK_SECRET=${TRIGGER_WEBHOOK_SECRET}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.suna-backend.rule=Host(`suna.martin-linde.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.suna-backend.entrypoints=websecure"
+      - "traefik.http.routers.suna-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.suna-backend.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.suna-backend-stripprefix.stripprefix.prefixes=/api"
+      - "traefik.http.routers.suna-backend.middlewares=suna-backend-stripprefix"
     depends_on:
       redis:
         condition: service_healthy
@@ -39,19 +50,27 @@ services:
   worker:
     image: ghcr.io/suna-ai/suna-backend:latest
     platform: linux/amd64
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
     command: uv run dramatiq --skip-logging --processes 4 --threads 4 run_agent_background
-    volumes:
-      - ./backend/.env:/app/.env:ro
-    env_file:
-      - ./backend/.env
     environment:
+      - ENV_MODE=${ENV_MODE:-production}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
       - REDIS_SSL=False
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - DAYTONA_API_KEY=${DAYTONA_API_KEY}
+      - DAYTONA_SERVER_URL=${DAYTONA_SERVER_URL:-https://app.daytona.io/api}
+      - DAYTONA_TARGET=${DAYTONA_TARGET:-us}
+      - RAPID_API_KEY=${RAPID_API_KEY}
+      - MCP_CREDENTIAL_ENCRYPTION_KEY=${MCP_CREDENTIAL_ENCRYPTION_KEY}
+      - WEBHOOK_BASE_URL=https://suna.martin-linde.com
+      - TRIGGER_WEBHOOK_SECRET=${TRIGGER_WEBHOOK_SECRET}
     depends_on:
       redis:
         condition: service_healthy
@@ -61,10 +80,18 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend/.env.local:/app/.env.local:ro
+    environment:
+      - NEXT_PUBLIC_ENV_MODE=${NEXT_PUBLIC_ENV_MODE:-production}
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_BACKEND_URL=https://suna.martin-linde.com/api
+      - NEXT_PUBLIC_URL=https://suna.martin-linde.com
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.suna-frontend.rule=Host(`suna.martin-linde.com`)"
+      - "traefik.http.routers.suna-frontend.entrypoints=websecure"
+      - "traefik.http.routers.suna-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.suna-frontend.loadbalancer.server.port=3000"
     depends_on:
       - backend
 
