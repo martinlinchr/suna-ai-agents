@@ -11,8 +11,9 @@ services:
       retries: 3
 
   backend:
-    image: ghcr.io/suna-ai/suna-backend:latest
-    platform: linux/amd64
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
       - ENV_MODE=${ENV_MODE:-production}
       - SUPABASE_URL=${SUPABASE_URL}
@@ -25,7 +26,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - TAVILY_API_KEY=${TAVILY_API_KEY}
-      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-self-hosted}
       - DAYTONA_API_KEY=${DAYTONA_API_KEY}
       - DAYTONA_SERVER_URL=${DAYTONA_SERVER_URL:-https://app.daytona.io/api}
       - DAYTONA_TARGET=${DAYTONA_TARGET:-us}
@@ -48,8 +49,9 @@ services:
         condition: service_started
 
   worker:
-    image: ghcr.io/suna-ai/suna-backend:latest
-    platform: linux/amd64
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     command: uv run dramatiq --skip-logging --processes 4 --threads 4 run_agent_background
     environment:
       - ENV_MODE=${ENV_MODE:-production}
@@ -63,7 +65,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - TAVILY_API_KEY=${TAVILY_API_KEY}
-      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-self-hosted}
       - DAYTONA_API_KEY=${DAYTONA_API_KEY}
       - DAYTONA_SERVER_URL=${DAYTONA_SERVER_URL:-https://app.daytona.io/api}
       - DAYTONA_TARGET=${DAYTONA_TARGET:-us}
@@ -76,7 +78,6 @@ services:
         condition: service_healthy
 
   frontend:
-    init: true
     build:
       context: ./frontend
       dockerfile: Dockerfile
