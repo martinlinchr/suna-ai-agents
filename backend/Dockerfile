@@ -25,6 +25,9 @@ RUN if [ -f requirements.txt ]; then \
         echo "No requirements.txt found, will install from pyproject.toml"; \
     fi
 
+# Ensure uvicorn is installed
+RUN uv pip install --system uvicorn[standard] dramatiq
+
 # Copy the application code
 COPY . .
 
