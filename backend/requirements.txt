@@ -32,3 +32,4 @@ pytesseract
 PyPDF2
 python-pptx
 openpyxl
+sentry-sdk>=1.40.0
